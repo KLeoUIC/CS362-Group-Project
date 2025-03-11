@@ -1,11 +1,15 @@
 # CS362-Group-Project
-Making lazer tag blasters and vests for the IOT project for C362 at UIC.
 
+## Project Overview
+Building laser tag blasters and vests for the IOT project for CS362 at UIC.
 
-Links to setup the esp32 development environment:
-MAC: https://www.instructables.com/Getting-Started-With-ESP32-on-a-Mac/ 
-WINDOWS: https://samueladesola.medium.com/how-to-set-up-esp32-wroom-32-b2100060470c
+## Development Environment Setup
 
+### Mac OS
+[Getting Started With ESP32 on a Mac](https://www.instructables.com/Getting-Started-With-ESP32-on-a-Mac/)
 
-Current issues:
-- Limited to 3.3V supply (Affects transmitter range mostly)
+### Windows
+[How to Set Up ESP32-WROOM-32](https://samueladesola.medium.com/how-to-set-up-esp32-wroom-32-b2100060470c)
+
+## Current Challenges
+- Limited to 3.3V supply (primarily affects transmitter range)
