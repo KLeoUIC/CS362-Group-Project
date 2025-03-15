@@ -1,0 +1,20 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Build",
+            "type": "shell",
+            "command": "arduino-cli compile --fqbn esp32:esp32:esp32:PartitionScheme=huge_app --optimize-for-debug --build-property build.partitions=huge_app .",
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            }
+        },
+        {
+            "label": "Upload",
+            "type": "shell",
+            "command": "arduino-cli upload -p /dev/cu.usbserial-0001 --fqbn esp32:esp32:esp32:PartitionScheme=huge_app .",
+            "group": "test"
+        },
+    ]
+}
