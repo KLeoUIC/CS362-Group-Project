@@ -1,104 +1,107 @@
-#include <ArduinoBLE.h>
+#include <BLEDevice.h>
+#include <BLEScan.h>
+#include <BLEAdvertisedDevice.h>
 
-// UUIDs - must match peripheral
-const char* serviceUUID = "19B10000-E8F2-537E-4F6C-D104768A1214";
-const char* sendCharUUID = "19B10001-E8F2-537E-4F6C-D104768A1214";
-const char* receiveCharUUID = "19B10002-E8F2-537E-4F6C-D104768A1214";
+#define SERVICE_UUID        "4fafc201-1fb5-459e-8fcc-c5c9c331914b"
+#define CHARACTERISTIC_UUID "beb5483e-36e1-4688-b7f5-ea07361b26a8"
+#define SERVER_NAME "ESP32_1"
 
-String messageToSend = "Hello from client";
-bool sentMessage = false;
+static BLEAddress* serverAddress;
+static boolean doConnect = false;
+static boolean connected = false;
+static BLERemoteCharacteristic* pRemoteCharacteristic;
+
+class MyAdvertisedDeviceCallbacks: public BLEAdvertisedDeviceCallbacks {
+  void onResult(BLEAdvertisedDevice advertisedDevice) {
+    if (advertisedDevice.getName() == SERVER_NAME) {
+      Serial.print("Found server device: ");
+      Serial.println(advertisedDevice.toString().c_str());
+      serverAddress = new BLEAddress(advertisedDevice.getAddress());
+      doConnect = true;
+      BLEDevice::getScan()->stop();
+    }
+  }
+};
+
+static void notifyCallback(BLERemoteCharacteristic* pCharacteristic, uint8_t* pData, size_t length, bool isNotify) {
+  Serial.print("Received notification: ");
+  for (int i = 0; i < length; i++) {
+    Serial.print((char)pData[i]);
+  }
+  Serial.println();
+}
+
+bool connectToServer() {
+  Serial.print("Connecting to ");
+  Serial.println(serverAddress->toString().c_str());
+  
+  BLEClient* pClient = BLEDevice::createClient();
+  
+  if (!pClient->connect(*serverAddress)) {
+    Serial.println("Connection failed");
+    return false;
+  }
+  
+  BLERemoteService* pRemoteService = pClient->getService(SERVICE_UUID);
+  if (pRemoteService == nullptr) {
+    Serial.println("Failed to find service UUID");
+    return false;
+  }
+  
+  pRemoteCharacteristic = pRemoteService->getCharacteristic(CHARACTERISTIC_UUID);
+  if (pRemoteCharacteristic == nullptr) {
+    Serial.println("Failed to find characteristic UUID");
+    return false;
+  }
+  
+  if (pRemoteCharacteristic->canRead()) {
+    String value = pRemoteCharacteristic->readValue().c_str();
+    Serial.print("Initial value: ");
+    Serial.println(value);
+  }
+  
+  if (pRemoteCharacteristic->canNotify()) {
+    pRemoteCharacteristic->registerForNotify(notifyCallback);
+    Serial.println("Registered for notifications");
+  }
+  
+  connected = true;
+  return true;
+}
 
 void setup() {
   Serial.begin(115200);
-  delay(1000);
-  
   Serial.println("Starting BLE Client...");
-  
-  if (!BLE.begin()) {
-    Serial.println("Starting BLE failed!");
-    while (1);
-  }
-  
-  Serial.println("BLE Central initialized, scanning for peripherals...");
+  BLEDevice::init("");
+  BLEScan* pBLEScan = BLEDevice::getScan();
+  pBLEScan->setAdvertisedDeviceCallbacks(new MyAdvertisedDeviceCallbacks());
+  pBLEScan->setActiveScan(true);
+  pBLEScan->start(5, false); // Scan for 5 seconds
 }
 
 void loop() {
-  BLE.scanForUuid(serviceUUID);
-  
-  BLEDevice peripheral = BLE.available();
-  
-  if (peripheral) {
-    Serial.print("Found peripheral: ");
-    Serial.println(peripheral.localName());
-    
-    BLE.stopScan();
-    
-    if (connectToPeripheral(peripheral)) {
-      Serial.println("Disconnected from server");
+  // If the flag is true, connect to the server
+  if (doConnect) {
+    if (connectToServer()) {
+      Serial.println("Connected to server");
     } else {
-      Serial.println("Connection failed");
+      Serial.println("Failed to connect");
     }
-    
-    // Restart scanning
-    Serial.println("Scanning for peripherals...");
-    sentMessage = false;
-  }
-}
-
-bool connectToPeripheral(BLEDevice peripheral) {
-  Serial.println("Connecting...");
-  
-  if (!peripheral.connect()) {
-    return false;
+    doConnect = false;
   }
   
-  Serial.println("Connected");
-  
-  // Discover peripheral attributes
-  if (!peripheral.discoverAttributes()) {
-    Serial.println("Attribute discovery failed");
-    peripheral.disconnect();
-    return false;
-  }
-  
-  BLEService service = peripheral.service(serviceUUID);
-  if (!service) {
-    Serial.println("Service not found");
-    peripheral.disconnect();
-    return false;
-  }
-  
-  BLECharacteristic sendChar = service.characteristic(sendCharUUID);
-  BLECharacteristic receiveChar = service.characteristic(receiveCharUUID);
-  
-  if (!sendChar || !receiveChar) {
-    Serial.println("Characteristics not found");
-    peripheral.disconnect();
-    return false;
-  }
-  
-  if (!receiveChar.subscribe()) {
-    Serial.println("Subscription failed");
-    peripheral.disconnect();
-    return false;
-  }
-  
-  Serial.println("Subscribed to notifications");
-  
-  while (peripheral.connected()) {
-    if (!sentMessage) {
-      sendChar.writeValue(messageToSend);
-      Serial.println("Message sent: " + messageToSend);
-      sentMessage = true;
+  // If connected, poll for messages
+  if (connected) {
+    // Read the latest value
+    if (pRemoteCharacteristic->canRead()) {
+      String value = pRemoteCharacteristic->readValue().c_str();
+      Serial.print("Current value: ");
+      Serial.println(value);
     }
-    
-    if (receiveChar.valueUpdated()) {
-      String value = receiveChar.readValue();
-      Serial.println("Received: " + value);
-    }
-    
-    delay(100);
+  } else {
+    // Restart scanning if disconnected
+    BLEDevice::getScan()->start(5);
   }
-   
-  return true;
+  
+  delay(1000);
 }

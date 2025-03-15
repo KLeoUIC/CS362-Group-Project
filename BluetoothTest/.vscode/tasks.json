@@ -1,0 +1,40 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Build Server",
+            "type": "shell",
+            "command": "arduino-cli compile --fqbn esp32:esp32:esp32:PartitionScheme=huge_app --optimize-for-debug --build-property build.partitions=huge_app ./server",
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            }
+        },
+        {
+            "label": "Upload Server",
+            "type": "shell",
+            "command": "arduino-cli upload -p /dev/cu.usbserial-0001 --fqbn esp32:esp32:esp32:PartitionScheme=huge_app ./server",
+            "group": "test"
+        },
+        {
+            "label": "Build Client",
+            "type": "shell",
+            "command": "arduino-cli compile --fqbn esp32:esp32:esp32:PartitionScheme=huge_app --optimize-for-debug --build-property build.partitions=huge_app ./client",
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            }
+        },
+        {
+            "label": "Upload Client",
+            "type": "shell",
+            "command": "arduino-cli upload -p /dev/cu.usbserial-0001 --fqbn esp32:esp32:esp32:PartitionScheme=huge_app ./client",
+            "group": "test"
+        },
+        {
+            "label": "Monitor",
+            "type": "shell",
+            "command": "arduino-cli monitor -p /dev/cu.usbserial-0001"
+        }
+    ]
+}

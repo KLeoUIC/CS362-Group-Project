@@ -1,51 +1,33 @@
-#include <ArduinoBLE.h>
+#include <BLEDevice.h>
+#include <BLEUtils.h>
+#include <BLEServer.h>
 
-BLEService dataService("19B10000-E8F2-537E-4F6C-D104768A1214");
-BLEStringCharacteristic sendCharacteristic("19B10001-E8F2-537E-4F6C-D104768A1214", BLERead | BLEWrite, 20);
-BLEStringCharacteristic receiveCharacteristic("19B10002-E8F2-537E-4F6C-D104768A1214", BLERead | BLENotify, 20);
+#define SERVICE_UUID        "4fafc201-1fb5-459e-8fcc-c5c9c331914b"
+#define CHARACTERISTIC_UUID "beb5483e-36e1-4688-b7f5-ea07361b26a8"
 
 void setup() {
   Serial.begin(115200);
-  
-  if (!BLE.begin()) {
-    Serial.println("Starting BLE failed!");
-    while (1);
-  }
-  
-  BLE.setLocalName("ESP32_Server");
-  
-  BLE.setAdvertisedService(dataService);
-  dataService.addCharacteristic(sendCharacteristic);
-  dataService.addCharacteristic(receiveCharacteristic);
-  BLE.addService(dataService);
-  
-  sendCharacteristic.setValue("");
-  receiveCharacteristic.setValue("");
+  Serial.println("Starting BLE work!");
 
-  BLE.advertise();
-  Serial.println("BLE device active, waiting for connections...");
+  BLEDevice::init("ESP32_1");
+  BLEServer *pServer = BLEDevice::createServer();
+  BLEService *pService = pServer->createService(SERVICE_UUID);
+  BLECharacteristic *pCharacteristic = pService->createCharacteristic(
+                                         CHARACTERISTIC_UUID,
+                                         BLECharacteristic::PROPERTY_READ |
+                                         BLECharacteristic::PROPERTY_WRITE
+                                       );
+
+  pCharacteristic->setValue("Hello World says Lil Timmy");
+  pService->start();
+  BLEAdvertising *pAdvertising = BLEDevice::getAdvertising();
+  pAdvertising->addServiceUUID(SERVICE_UUID);
+  pAdvertising->setScanResponse(true);
+  pAdvertising->setMinPreferred(0x06);
+  pAdvertising->setMinPreferred(0x12);
+  BLEDevice::startAdvertising();
 }
 
 void loop() {
-  BLEDevice central = BLE.central();
-  
-  if (central) {
-    Serial.print("Connected to central: ");
-    Serial.println(central.address());
-    
-    while (central.connected()) {
-      if (sendCharacteristic.written()) {
-        String value = sendCharacteristic.value();
-        Serial.print("Received: ");
-        Serial.println(value);
-        
-        receiveCharacteristic.setValue("Response to: " + value);
-      }
-      
-      delay(10);
-    }
-    
-    Serial.print("Disconnected from central: ");
-    Serial.println(central.address());
-  }
+  delay(2000);
 }
